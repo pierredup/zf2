@@ -57,7 +57,7 @@ class ParameterReflection extends ReflectionParameter implements ReflectionInter
     /**
      * Get declaring function reflection object
      *
-     * @param  string $reflectionClass Reflection class to use
+     * @param  string                              $reflectionClass Reflection class to use
      * @return FunctionReflection|MethodReflection
      */
     public function getDeclaringFunction($reflectionClass = null)
@@ -80,20 +80,40 @@ class ParameterReflection extends ReflectionParameter implements ReflectionInter
      */
     public function getType()
     {
-        if($this->isArray()) {
-            return 'array';
-        } else if(($class = $this->getClass()) instanceof \ReflectionClass) {
-            return $class->getName();
+        $type = null;
+
+        $checkDefault = true;
+
+        if ($this->isArray()) {
+            $type = 'array';
+        } elseif (($class = $this->getClass()) instanceof \ReflectionClass) {
+            $type = $class->getName();
         } elseif ($docBlock = $this->getDeclaringFunction()->getDocBlock()) {
             $params = $docBlock->getTags('param');
 
             if (isset($params[$this->getPosition()])) {
-                return $params[$this->getPosition()]->getType();
+                $type = $params[$this->getPosition()]->getType();
+                $checkDefault = false;
             }
-
         }
 
-        return null;
+        if ($this->isDefaultValueAvailable() && $checkDefault) {
+            if ($type === null) {
+                $value = $this->getDefaultValue();
+                $type = strtolower(gettype($value));
+
+                switch ($type) {
+                    case 'boolean' : $type = 'bool'; break;
+                    case 'integer' : $type = 'int'; break;
+                }
+            } else {
+                if ($this->getDefaultValue() === null) {
+                   $type .= '|null';
+                }
+            }
+        }
+
+        return $type;
     }
 
     public function toString()
